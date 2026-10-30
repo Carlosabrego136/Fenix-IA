@@ -1,0 +1,24 @@
+{
+  "name": "fenix-ia",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Fénix IA - asistente de IA para administrar el negocio de envíos (PWA instalable)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:setup": "node scripts/setup-db.mjs",
+    "db:check": "node scripts/check-lectura.mjs"
+  },
+  "engines": {
+    "node": ">=20.9"
+  },
+  "dependencies": {
+    "jose": "^6.1.0",
+    "next": "15.5.27",
+    "pg": "^8.16.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}

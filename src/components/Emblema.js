@@ -1,0 +1,14 @@
+export default function Emblema({ tam = 64 }) {
+  return (
+    <svg width={tam} height={tam} viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id="fenix-g" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stopColor="#ff5a1a" />
+          <stop offset="1" stopColor="#ffb347" />
+        </linearGradient>
+      </defs>
+      <path fill="url(#fenix-g)" d="M32 3C35 14 48 22 48 38C48 50 41 61 32 61C23 61 16 50 16 38C16 29 21 24 24 18C25 25 28 28 31 29C30 20 28 10 32 3Z" />
+      <path fill="#ffe3a3" d="M32 30C35 36 40 40 40 47C40 54 36 58 32 58C28 58 24 54 24 47C24 41 29 38 32 30Z" />
+    </svg>
+  );
+}
