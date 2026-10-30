@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Emblema from './Emblema';
 import Markdown from './Markdown';
+import { aplicarTema, temaActual } from './tema';
 import { api, abrirWhatsapp, copiarTexto, fechaCorta } from './api';
 
 const SUGERENCIAS = [
@@ -38,6 +39,8 @@ export default function Chat() {
   const [toast, setToast] = useState('');
   const [instalador, setInstalador] = useState(null);
   const [ayudaIos, setAyudaIos] = useState(false);
+  const [config, setConfig] = useState(false);
+  const [tema, setTema] = useState('claro');
   const activoRef = useRef(null);
   const finRef = useRef(null);
   const areaRef = useRef(null);
@@ -198,6 +201,7 @@ export default function Chat() {
         </div>
         <div className="lateral__pie">
           <Link href="/memoria" className="enlace-fila">🧠 Lo que he aprendido</Link>
+          <button className="enlace-fila" onClick={() => { setTema(temaActual()); setConfig(true); }}>⚙️ Configuración</button>
           {instalador && (
             <button className="enlace-fila" onClick={async () => { instalador.prompt(); await instalador.userChoice; setInstalador(null); }}>
               📲 Instalar app en este celular
@@ -292,7 +296,24 @@ export default function Chat() {
           </div>
         </div>
       )}
-      {toast && <div style={{ position: 'fixed', bottom: 'calc(110px + env(safe-area-inset-bottom))', left: '50%', transform: 'translateX(-50%)', background: '#0f3a22', border: '1px solid #1c6b3e', color: '#b7f5cf', padding: '12px 20px', borderRadius: 14, zIndex: 60, fontWeight: 600 }}>{toast}</div>}
+      {config && (
+        <div className="fondo-modal" onClick={() => setConfig(false)}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label="Configuración" onClick={(e) => e.stopPropagation()}>
+            <h3>Configuración</h3>
+            <p>Elija cómo quiere ver la aplicación. Se guarda en este aparato.</p>
+            <div className="opciones-tema">
+              {[['claro', 'Claro'], ['oscuro', 'Oscuro']].map(([clave, nombreTema]) => (
+                <button key={clave} className={`opcion-tema ${tema === clave ? 'activa' : ''}`} aria-pressed={tema === clave} onClick={() => setTema(aplicarTema(clave))}>
+                  <span className={`muestra m-${clave}`}><i /><i /></span>
+                  {nombreTema}{tema === clave ? ' ✓' : ''}
+                </button>
+              ))}
+            </div>
+            <button className="btn" style={{ width: '100%' }} onClick={() => setConfig(false)}>Listo</button>
+          </div>
+        </div>
+      )}
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
