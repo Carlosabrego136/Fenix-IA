@@ -10,9 +10,14 @@ const clamp = (n, min, max, def) => {
   return Math.min(max, Math.max(min, v));
 };
 const esc = (s) => String(s).replace(/[\\%_]/g, (m) => '\\' + m);
-// Búsqueda tolerante: sin mayúsculas, sin acentos y sin letras dobles ("Express" = "Expres").
-const plano = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/(.)\1/g, '$1');
-const sqlPlano = (col) => `regexp_replace(translate(lower(${col}), 'áéíóúüñ', 'aeiouun'), '(.)\\1', '\\1', 'g')`;
+// Búsqueda tolerante a mayúsculas, acentos y faltas comunes (b/v, s/z/c, y/i, h muda, qu/k, letras dobles).
+// Ej.: "Express" = "Expres", "Aracely" = "Araceli", "Hernandes" = "Hernández".
+// plano() (JS) y sqlPlano() (SQL) deben hacer exactamente la misma transformación.
+const plano = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/qu/g, 'k').replace(/c(?=[ei])/g, 's')
+  .replace(/[czvyh]/g, (m) => ({ c: 'k', z: 's', v: 'b', y: 'i', h: '' })[m])
+  .replace(/(.)\1/g, '$1');
+const sqlPlano = (col) => `regexp_replace(translate(regexp_replace(regexp_replace(translate(lower(${col}), 'áéíóúüñ', 'aeiouun'), 'qu', 'k', 'g'), 'c(?=[ei])', 's', 'g'), 'czvyh', 'ksbi'), '(.)\\1', '\\1', 'g')`;
 const ESTADOS = ['recibido', 'en_transito', 'listo_entrega', 'entregado'];
 
 function local(d) {
@@ -185,7 +190,7 @@ export async function buscarClientes(f = {}) {
       for (const p of mios) por[p.estado] = (por[p.estado] || 0) + 1;
       return { id: c.id, nombre: c.nombre, telefono: c.telefono || null, bloque: c.bloque, activo: c.activo, paquetes_por_estado: por, _activos: mios.filter((p) => p.estado !== 'entregado').length };
     });
-    if (f.texto) rows = rows.filter((r) => inc(r.nombre, f.texto) || inc(r.telefono, f.texto));
+    if (f.texto) rows = rows.filter((r) => inc(r.nombre, f.texto) || String(r.telefono || '').includes(String(f.texto)));
     if (f.sin_telefono) rows = rows.filter((r) => !r.telefono);
     if (f.con_paquetes_activos) rows = rows.filter((r) => r._activos > 0);
     return { total_encontrados: rows.length, clientes: rows.slice(0, limite).map(({ _activos, ...x }) => x) };
@@ -195,7 +200,8 @@ export async function buscarClientes(f = {}) {
   const w = [];
   if (f.texto) {
     const t = p('%' + esc(f.texto) + '%');
-    w.push(`(c.nombre ILIKE ${t} OR c.telefono ILIKE ${t})`);
+    const tn = p('%' + esc(plano(f.texto)) + '%');
+    w.push(`(${sqlPlano('c.nombre')} ILIKE ${tn} OR c.telefono ILIKE ${t})`);
   }
   if (f.sin_telefono) w.push("(c.telefono IS NULL OR btrim(c.telefono) = '')");
   if (f.con_paquetes_activos) w.push("EXISTS (SELECT 1 FROM paquetes q WHERE q.cliente_id = c.id AND q.estado <> 'entregado')");
@@ -234,8 +240,8 @@ export async function buscarVendedores(f = {}) {
   const p = (v) => (params.push(v), `$${params.length}`);
   const w = [];
   if (f.texto) {
-    const t = p('%' + esc(f.texto) + '%');
-    w.push(`(v.nombre ILIKE ${t} OR v.alias ILIKE ${t})`);
+    const t = p('%' + esc(plano(f.texto)) + '%');
+    w.push(`(${sqlPlano('v.nombre')} ILIKE ${t} OR ${sqlPlano('v.alias')} ILIKE ${t})`);
   }
   if (f.estatus) w.push(`v.estatus = ${p(String(f.estatus))}`);
   if (f.vence_en_dias != null) w.push(`(v.fecha_vencimiento::date - (now() AT TIME ZONE $1)::date) <= ${p(clamp(f.vence_en_dias, -3650, 3650, 30))}::int`);
