@@ -7,11 +7,39 @@ import { aplicarTema, temaActual } from './tema';
 import { api, abrirWhatsapp, copiarTexto, fechaCorta } from './api';
 
 const SUGERENCIAS = [
+  '¿Qué folios están por vencer?',
   '¿Cómo vamos con los paquetes esta semana?',
   '¿Qué paquetes llevan mucho tiempo sin entregarse?',
-  '¿Hay guías repetidas que me puedan causar problemas?',
-  '¿Qué avisos de WhatsApp fallaron?',
+  'Ayúdame a hacer una cotización',
 ];
+
+const MAX_FOTOS = 6;
+const MAX_TOTAL = 3200000; // caracteres base64 por mensaje (el servidor acepta ~4.3 MB)
+
+// Reduce la foto en el propio teléfono para que viaje rápido y quepa en el límite del servidor.
+function reducirImagen(archivo, maxLado = 1600, calidad = 0.82) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(archivo);
+    const img = new Image();
+    img.onload = () => {
+      const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * escala));
+      c.height = Math.max(1, Math.round(img.height * escala));
+      const g = c.getContext('2d');
+      g.fillStyle = '#fff';
+      g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', calidad));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('No pude leer una de las fotos.'));
+    };
+    img.src = url;
+  });
+}
 
 const IconoMenu = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
@@ -41,6 +69,9 @@ export default function Chat() {
   const [ayudaIos, setAyudaIos] = useState(false);
   const [config, setConfig] = useState(false);
   const [tema, setTema] = useState('claro');
+  const [fotos, setFotos] = useState([]);
+  const [panel, setPanel] = useState(null);
+  const archivoRef = useRef(null);
   const activoRef = useRef(null);
   const finRef = useRef(null);
   const areaRef = useRef(null);
@@ -53,6 +84,7 @@ export default function Chat() {
 
   useEffect(() => {
     api('/api/uso').then(setInfo).catch(() => {});
+    api('/api/panel').then(setPanel).catch(() => {});
     api('/api/chats').then((d) => setChats(d.chats)).catch((e) => setError(e.message));
     const antes = (e) => {
       e.preventDefault();
@@ -104,17 +136,53 @@ export default function Chat() {
     setTimeout(() => areaRef.current?.focus(), 50);
   }
 
+  async function adjuntar(e) {
+    const archivos = Array.from(e.target.files || []).filter((a) => a.type.startsWith('image/'));
+    e.target.value = '';
+    if (!archivos.length) return;
+    if (fotos.length + archivos.length > MAX_FOTOS) {
+      setError(`Puede mandar hasta ${MAX_FOTOS} fotos por mensaje.`);
+      return;
+    }
+    setError('');
+    try {
+      const nuevas = [];
+      for (const a of archivos) nuevas.push({ id: Math.random().toString(36).slice(2), url: await reducirImagen(a) });
+      setFotos((f) => [...f, ...nuevas]);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function enviar(contenido) {
-    const msg = (contenido ?? texto).trim();
-    if (!msg || enviando) return;
+    const escrito = (contenido ?? texto).trim();
+    if ((!escrito && !fotos.length) || enviando) return;
+    let enviadas = fotos;
+    if (enviadas.reduce((n, f) => n + f.url.length, 0) > MAX_TOTAL) {
+      // demasiado pesado: se comprimen más antes de mandar
+      try {
+        enviadas = await Promise.all(enviadas.map(async (f) => {
+          const img = await fetch(f.url).then((r) => r.blob());
+          return { ...f, url: await reducirImagen(img, 1200, 0.68) };
+        }));
+      } catch {}
+      if (enviadas.reduce((n, f) => n + f.url.length, 0) > 4200000) {
+        setError('Las fotos pesan demasiado. Mande menos fotos a la vez.');
+        return;
+      }
+    }
+    const msg = enviadas.length
+      ? `${escrito || 'Revise estas fotos, por favor.'}\n\n📷 ${enviadas.length} foto${enviadas.length > 1 ? 's' : ''} adjunta${enviadas.length > 1 ? 's' : ''}`
+      : escrito;
     setError('');
     setEnviando(true);
     const origen = activoRef.current;
     const temporal = { id: 'tmp-' + Date.now(), rol: 'user', contenido: msg };
     setMensajes((m) => [...m, temporal]);
     setTexto('');
+    setFotos([]);
     try {
-      const d = await api('/api/chat', { method: 'POST', body: JSON.stringify({ chatId: origen, mensaje: msg }) });
+      const d = await api('/api/chat', { method: 'POST', body: JSON.stringify({ chatId: origen, mensaje: escrito, imagenes: enviadas.map((f) => f.url) }) });
       setChats((cs) => {
         const sin = cs.filter((c) => c.id !== d.chatId);
         return [{ id: d.chatId, titulo: d.titulo, actualizado_en: new Date().toISOString() }, ...sin];
@@ -126,7 +194,8 @@ export default function Chat() {
     } catch (e) {
       if (activoRef.current === origen) {
         setMensajes((m) => m.filter((x) => x.id !== temporal.id));
-        setTexto(msg);
+        setTexto(escrito);
+        setFotos(enviadas);
       }
       setError(e.message);
     } finally {
@@ -200,7 +269,12 @@ export default function Chat() {
           ))}
         </div>
         <div className="lateral__pie">
-          <Link href="/memoria" className="enlace-fila">🧠 Lo que he aprendido</Link>
+          <div className="menu-nav">
+            <Link href="/folios">📦 Folios</Link>
+            <Link href="/pagos">💵 Pagos</Link>
+            <Link href="/plantillas">📝 Plantillas</Link>
+            <Link href="/memoria">🧠 Lo que he aprendido</Link>
+          </div>
           <button className="enlace-fila" onClick={() => { setTema(temaActual()); setConfig(true); }}>⚙️ Configuración</button>
           {instalador && (
             <button className="enlace-fila" onClick={async () => { instalador.prompt(); await instalador.userChoice; setInstalador(null); }}>
@@ -237,6 +311,15 @@ export default function Chat() {
                   <button key={s} className="sugerencia" onClick={() => enviar(s)}>{s}</button>
                 ))}
               </div>
+              {panel?.disponible && panel.pendientes > 0 && (panel.vencidos + panel.hoy + panel.manana + panel.atencion > 0) && (
+                <Link href="/folios" className={`panel-tarjeta ${panel.vencidos + panel.hoy > 0 ? 'rojo' : 'ambar'}`} style={{ marginTop: 18, textAlign: 'left' }}>
+                  <b>📦 Folios por atender</b>
+                  {panel.vencidos > 0 && <div>{panel.vencidos} ya cumplieron 14 días (posible multa)</div>}
+                  {panel.hoy > 0 && <div>{panel.hoy} vencen HOY</div>}
+                  {panel.manana > 0 && <div>{panel.manana} vencen mañana</div>}
+                  {panel.atencion > 0 && <div>{panel.atencion} están a 10–11 días</div>}
+                </Link>
+              )}
               {demo && <p style={{ marginTop: 22, fontSize: '.85rem' }}>Modo demostración: se muestran datos de ejemplo.</p>}
             </div>
           ) : (
@@ -264,18 +347,30 @@ export default function Chat() {
 
         <div className="compositor">
           {error && <div className="aviso-error" role="alert">{error}</div>}
+          {fotos.length > 0 && (
+            <div className="adjuntos">
+              {fotos.map((f) => (
+                <div className="adjunto" key={f.id}>
+                  <img src={f.url} alt="Foto adjunta" />
+                  <button aria-label="Quitar foto" onClick={() => setFotos((x) => x.filter((y) => y.id !== f.id))}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="compositor__fila">
+            <input ref={archivoRef} type="file" accept="image/*" multiple hidden onChange={adjuntar} />
+            <button className="icono-btn" type="button" aria-label="Adjuntar fotos" onClick={() => archivoRef.current?.click()} disabled={enviando || fotos.length >= MAX_FOTOS}>📷</button>
             <textarea
               ref={areaRef}
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               onKeyDown={alTeclear}
-              placeholder="Escriba su pregunta…"
+              placeholder={fotos.length ? 'Agregue un mensaje (opcional)…' : 'Escriba su pregunta…'}
               rows={1}
               maxLength={4000}
               aria-label="Mensaje"
             />
-            <button className="btn" onClick={() => enviar()} disabled={enviando || !texto.trim()} aria-label="Enviar"><IconoEnviar /></button>
+            <button className="btn" onClick={() => enviar()} disabled={enviando || (!texto.trim() && !fotos.length)} aria-label="Enviar"><IconoEnviar /></button>
           </div>
           <div className="nota-pie">La IA puede equivocarse. Confirme los datos importantes antes de actuar.</div>
         </div>

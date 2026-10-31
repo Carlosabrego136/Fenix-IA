@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start",
     "db:setup": "node scripts/setup-db.mjs",
-    "db:check": "node scripts/check-lectura.mjs"
+    "db:check": "node scripts/check-lectura.mjs",
+    "db:seed": "node scripts/seed.mjs"
   },
   "engines": {
     "node": ">=20.9"

@@ -82,6 +82,13 @@ npm run db:setup   # crea las tablas en fenix_ia (es seguro repetirlo)
 npm run db:check   # prueba la lectura de envios_ayora y valida las columnas
 ```
 
+```bash
+npm run db:seed    # carga lo que la dueña ya explicó: reglas, plantillas y recolectores (seguro repetirlo)
+```
+
+`db:seed` no duplica nada; con `npm run db:seed -- --forzar` vuelve a escribir las plantillas y los recolectores
+con el texto original (guarda la versión anterior de cada plantilla).
+
 Si `db:check` marca una columna distinta a la esperada, avísame y se ajusta en `src/lib/lectura.js`.
 (Las tablas también se crean solas en la primera consulta.)
 
@@ -91,9 +98,18 @@ Abrir el link de Vercel en Chrome (Android) → menú ⋮ → **Instalar aplicac
 
 ---
 
+## Lo que incluye (etapa 2)
+
+- **Folios de PZ Express** (`/folios`): la dueña manda a la IA la foto del ticket o una lista; la IA lee folio, fecha de recepción, sucursales y etiqueta `AYORA / nombre / número`, **propone** el registro, detecta duplicados (ya registrados o repetidos en la lista) y **solo guarda cuando ella confirma en un mensaje posterior** (lo hace cumplir el servidor, igual que "olvidar"). Calcula días y el último día sin multa (recepción + 13); avisa en 10, 12 y 13 días, marca multa probable desde el día 14 y decomiso a los 60. Las fotos se reducen en el celular, solo viajan en ese mensaje y **no se guardan**.
+- **Pagos** (`/pagos`): control de quién mandó comprobante (pendiente → comprobante recibido → pagado). La IA no ve Messenger ni verifica depósitos.
+- **Plantillas** (`/plantillas`): dinámica, cotización, servicios, publicaciones. La IA las usa tal cual. No se aceptan números de tarjeta ni CLABE.
+- **Cotizaciones**: la IA calcula el peso volumétrico (largo × ancho × alto ÷ 5000) y arma el mensaje con la plantilla; **nunca inventa precios**.
+- **Recolectores foráneos** 1–11 (para saber quién es quién en la etiqueta).
+- Pendiente de confirmar con la dueña (la IA lo avisa): si la multa de $50 es única, el redondeo del peso facturable, el calendario de pago→salida (hay versiones distintas) y las tarifas.
+
 ## Lo que el sistema NO tiene todavía
 
-El sistema actual no guarda **pagos**, **multas/folios con la paquetería** ni un estado de "guía recogida". La IA lo dice con honestidad. Cuando la dueña le explique cómo lo maneja ella, la IA lo guarda como recuerdo. Para respuestas exactas hace falta agregar esos datos al sistema.
+El sistema de envíos (`envios_ayora`) no guarda un estado de "guía recogida" ni las tarifas (están en la página web y en el sistema de clientes). La IA lo dice con honestidad. Los folios y pagos de esta etapa viven en la base `fenix_ia`.
 
 ## Desarrollo local
 

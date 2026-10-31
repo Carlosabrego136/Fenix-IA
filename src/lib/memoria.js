@@ -39,6 +39,14 @@ const M = (fn) =>
     return fn(c);
   });
 
+// Para los módulos de negocio que viven en la misma base: ejecuta fn(cliente) con el esquema ya creado.
+export const conBasePg = M;
+// Igual pero dentro de una transacción (BEGIN/COMMIT); el esquema se asegura antes.
+export async function conTransaccionPg(fn) {
+  await M(async () => {});
+  return transaccion('memoria', fn);
+}
+
 export async function prepararEsquema() {
   if (!configurada('memoria')) return false;
   await M(async () => {});

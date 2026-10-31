@@ -1,6 +1,7 @@
 // Herramientas que la IA puede usar: consultas de solo lectura al sistema de envíos y manejo de su memoria.
 import * as L from './lectura.js';
 import { memoria, CATEGORIAS } from './memoria.js';
+import * as N from './negocio.js';
 
 const ESTADOS = ['recibido', 'en_transito', 'listo_entrega', 'entregado'];
 const MAX_SALIDA = 14000;
@@ -123,6 +124,155 @@ export const HERRAMIENTAS = [
     description: 'Cancela un borrado propuesto cuando la dueña dice que no.',
     input_schema: { type: 'object', properties: {} },
   },
+  {
+    name: 'proponer_folios',
+    description:
+      'Primer paso para registrar folios (números de guía) de PZ Express leídos de tickets, fotos o una lista. NO guarda nada: valida, detecta duplicados (ya registrados o repetidos en la lista), calcula días transcurridos y el último día sin multa, y clasifica el recolector si la etiqueta dice AYORA / nombre / número. Después muéstrale a la dueña el resultado y pide confirmación. Fecha de recepción en formato AAAA-MM-DD. Si una cifra de la foto es dudosa, NO la adivines: pregúntale.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        folios: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              folio: { type: 'string', description: 'Número de guía / folio tal como aparece.' },
+              fecha_recepcion: { type: 'string', description: 'Fecha de «Recepción» del ticket, AAAA-MM-DD.' },
+              sucursal_origen: { type: 'string' }, sucursal_destino: { type: 'string' },
+              remitente: { type: 'string' }, destinatario: { type: 'string' },
+              tamano: { type: 'string' }, precio: { type: 'number' }, notas: { type: 'string' },
+            },
+            required: ['folio', 'fecha_recepcion'],
+          },
+        },
+      },
+      required: ['folios'],
+    },
+  },
+  {
+    name: 'confirmar_folios',
+    description: 'Segundo paso: guarda los folios propuestos. Solo funciona si la dueña confirmó en un mensaje NUEVO posterior a la propuesta. Nunca la llames en el mismo turno que proponer_folios.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  { name: 'cancelar_folios', description: 'Descarta la propuesta de folios cuando la dueña dice que no o quiere corregir.', input_schema: { type: 'object', properties: {} } },
+  {
+    name: 'editar_folio',
+    description: 'Corrige datos de un folio ya registrado (fecha de recepción, recolector, destinatario, notas…). Recibe el folio completo o sus últimos dígitos.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        folio: { type: 'string' },
+        cambios: { type: 'object', properties: {
+          fecha_recepcion: { type: 'string' }, sucursal_origen: { type: 'string' }, sucursal_destino: { type: 'string' },
+          remitente: { type: 'string' }, destinatario: { type: 'string' }, tamano: { type: 'string' },
+          precio: { type: 'number' }, recolector_numero: { type: 'integer' }, notas: { type: 'string' } } },
+      },
+      required: ['folio', 'cambios'],
+    },
+  },
+  {
+    name: 'marcar_folios',
+    description: 'Marca folios como recogidos (ya los recogió en la paquetería) o los regresa a pendientes. Avisa cuáles no encontró. Úsala cuando ella diga "ya recogí estos".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        folios: { type: 'array', items: { type: 'string' } },
+        estado: { type: 'string', enum: ['recogido', 'pendiente'] },
+        fecha: { type: 'string', description: 'Fecha en que se recogieron (AAAA-MM-DD). Por defecto hoy.' },
+      },
+      required: ['folios', 'estado'],
+    },
+  },
+  {
+    name: 'resumen_folios',
+    description: 'Estado de los folios pendientes: cuáles tienen hoy/mañana su último día sin multa, cuáles ya cumplieron 14 días, cuáles están a punto de decomiso (60) y cuáles están a 10-11 días. Úsala para "qué folios están por vencer", "cómo van mis folios".',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'buscar_folios',
+    description: 'Busca folios registrados por número (o últimos dígitos), nombre de remitente/destinatario o notas; filtra por estado, recolector o mínimo de días. También sirve para ver si un folio ya estaba (duplicados).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        texto: { type: 'string' }, estado: { type: 'string', enum: ['pendiente', 'recogido'] },
+        recolector_numero: { type: 'integer' }, min_dias: { type: 'integer' }, limite: { type: 'integer' },
+      },
+    },
+  },
+  {
+    name: 'registrar_pago',
+    description: 'Anota un pago semanal que se espera de un cliente (total, semana y fecha límite). No verifica depósitos ni ve Messenger: solo lleva el control que la dueña le dicta.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        cliente: { type: 'string' }, total: { type: 'number' }, semana_de: { type: 'string', description: 'AAAA-MM-DD de la semana (por defecto hoy).' },
+        fecha_limite: { type: 'string', description: 'AAAA-MM-DD' }, notas: { type: 'string' },
+      },
+      required: ['cliente'],
+    },
+  },
+  {
+    name: 'actualizar_pago',
+    description: 'Cambia el estado de un pago: pendiente, comprobante_recibido (ella vio el comprobante) o pagado. Solo según lo que ella te diga.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'integer' }, estado: { type: 'string', enum: ['pendiente', 'comprobante_recibido', 'pagado'] },
+        notas: { type: 'string' }, total: { type: 'number' }, fecha_limite: { type: 'string' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'listar_pagos',
+    description: 'Lista pagos registrados. estado "abiertos" = los que no están pagados.',
+    input_schema: {
+      type: 'object',
+      properties: { estado: { type: 'string', enum: ['abiertos', 'pendiente', 'comprobante_recibido', 'pagado'] }, cliente: { type: 'string' }, limite: { type: 'integer' } },
+    },
+  },
+  {
+    name: 'listar_plantillas',
+    description: 'Lista las plantillas de texto guardadas (dinámica de recolección, cotización, mensajes de servicio, publicaciones…).',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'obtener_plantilla',
+    description: 'Trae el texto completo de una plantilla por su nombre (por ejemplo dinamica_recoleccion, cotizacion, pedir_comprobante). Úsalo siempre que haya que mandar un texto de la dueña, y respétalo fielmente.',
+    input_schema: { type: 'object', properties: { nombre: { type: 'string' } }, required: ['nombre'] },
+  },
+  {
+    name: 'guardar_plantilla',
+    description: 'Crea o actualiza una plantilla con el texto EXACTO que la dueña te dio o aprobó. Se guarda la versión anterior. Nunca incluyas números de tarjeta, CLABE ni datos bancarios.',
+    input_schema: {
+      type: 'object',
+      properties: { nombre: { type: 'string', description: 'Nombre corto sin espacios, p. ej. cotizacion.' }, descripcion: { type: 'string' }, contenido: { type: 'string' } },
+      required: ['nombre', 'contenido'],
+    },
+  },
+  {
+    name: 'peso_volumetrico',
+    description: 'Calcula el peso volumétrico (largo x ancho x alto / 5000) para cotizar. No calcula precios.',
+    input_schema: {
+      type: 'object',
+      properties: { largo_cm: { type: 'number' }, ancho_cm: { type: 'number' }, alto_cm: { type: 'number' }, peso_real_kg: { type: 'number' }, cajas: { type: 'integer' } },
+      required: ['largo_cm', 'ancho_cm', 'alto_cm'],
+    },
+  },
+  {
+    name: 'buscar_recolectores',
+    description: 'Busca recolectores foráneos por número, nombre o ciudad (el número es el que aparece en la etiqueta AYORA / nombre / número).',
+    input_schema: { type: 'object', properties: { texto: { type: 'string' }, numero: { type: 'integer' } } },
+  },
+  {
+    name: 'guardar_recolector',
+    description: 'Agrega o corrige un recolector foráneo (número, nombre, ciudad).',
+    input_schema: {
+      type: 'object',
+      properties: { numero: { type: 'integer' }, nombre: { type: 'string' }, ciudad: { type: 'string' }, tipo: { type: 'string', enum: ['directo', 'foraneo'] }, activo: { type: 'boolean' } },
+      required: ['nombre'],
+    },
+  }
 ];
 
 const str = (v, max = 120) => (typeof v === 'string' ? v.trim().slice(0, max) : undefined) || undefined;
@@ -154,6 +304,7 @@ async function correr(nombre, i, ctx) {
     case 'guardar_recuerdo': {
       const contenido = str(i.contenido, 500);
       if (!contenido || contenido.length < 4) return { error: 'El recuerdo está vacío o es muy corto.' };
+      if (N.tieneDatosBancarios(contenido)) return { error: 'No se guardan números de tarjeta ni cuentas bancarias en la memoria.' };
       const r = await memoria.guardarRecuerdo({ categoria: i.categoria, contenido, origenChat: ctx.chatId, reemplazaId: num(i.reemplaza_id) });
       if (r.error === 'limite') return { error: 'La memoria está llena (300 recuerdos). Pídele a la dueña que borre algunos en la pantalla Memoria.' };
       return { guardado: true, ...r };
@@ -182,6 +333,44 @@ async function correr(nombre, i, ctx) {
     }
     case 'cancelar_olvido':
       return memoria.cancelarOlvido();
+    case 'proponer_folios': {
+      const r = await N.proponerFolios({ turno: ctx.mensajeUsuarioId, folios: Array.isArray(i.folios) ? i.folios : [] });
+      return r;
+    }
+    case 'confirmar_folios': {
+      const r = await N.confirmarFolios({ turno: ctx.mensajeUsuarioId });
+      if (r.error === 'no_hay_pendiente') return { error: 'No hay folios propuestos (o ya pasó más de un día). Vuelve a proponerlos.' };
+      if (r.error === 'falta_confirmacion') return { error: 'La dueña todavía no confirmó. Muéstrale la lista y espera su respuesta en un mensaje nuevo.' };
+      return r;
+    }
+    case 'cancelar_folios':
+      return N.cancelarFolios();
+    case 'editar_folio':
+      return N.editarFolio({ folio: str(i.folio, 40), cambios: i.cambios && typeof i.cambios === 'object' ? i.cambios : {} });
+    case 'marcar_folios':
+      return N.marcarFolios({ folios: Array.isArray(i.folios) ? i.folios.map((x) => String(x)) : [], estado: i.estado, fecha: str(i.fecha, 10) });
+    case 'resumen_folios':
+      return N.resumenFolios();
+    case 'buscar_folios':
+      return N.buscarFolios({ texto: str(i.texto, 60), estado: str(i.estado, 12), recolector_numero: Number.isInteger(i.recolector_numero) ? i.recolector_numero : undefined, min_dias: Number.isInteger(i.min_dias) ? i.min_dias : undefined, limite: num(i.limite) });
+    case 'registrar_pago':
+      return N.registrarPago({ cliente: i.cliente, total: i.total, semana_de: str(i.semana_de, 10), fecha_limite: str(i.fecha_limite, 10), notas: i.notas });
+    case 'actualizar_pago':
+      return N.actualizarPago({ id: Number.isInteger(num(i.id)) ? num(i.id) : undefined, estado: str(i.estado, 30), notas: i.notas, total: i.total, fecha_limite: str(i.fecha_limite, 10) });
+    case 'listar_pagos':
+      return N.listarPagos({ estado: str(i.estado, 30), cliente: str(i.cliente, 80), limite: num(i.limite) });
+    case 'listar_plantillas':
+      return N.listarPlantillas();
+    case 'obtener_plantilla':
+      return N.obtenerPlantilla({ nombre: str(i.nombre, 80) });
+    case 'guardar_plantilla':
+      return N.guardarPlantilla({ nombre: i.nombre, descripcion: i.descripcion, contenido: i.contenido });
+    case 'peso_volumetrico':
+      return N.pesoVolumetrico({ largo_cm: i.largo_cm, ancho_cm: i.ancho_cm, alto_cm: i.alto_cm, peso_real_kg: i.peso_real_kg, cajas: i.cajas });
+    case 'buscar_recolectores':
+      return N.buscarRecolectores({ texto: str(i.texto, 60), numero: Number.isInteger(i.numero) ? i.numero : undefined });
+    case 'guardar_recolector':
+      return N.guardarRecolector({ numero: Number.isInteger(i.numero) ? i.numero : undefined, nombre: i.nombre, ciudad: i.ciudad, tipo: i.tipo, activo: bool(i.activo) });
     default:
       return { error: `Herramienta desconocida: ${nombre}` };
   }

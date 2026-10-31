@@ -17,9 +17,19 @@ export async function POST(req) {
   } catch {
     return err(400, 'Solicitud inválida.');
   }
-  const texto = typeof body.mensaje === 'string' ? body.mensaje.trim() : '';
+  let texto = typeof body.mensaje === 'string' ? body.mensaje.trim() : '';
+  const imagenes = Array.isArray(body.imagenes) ? body.imagenes : [];
+  if (imagenes.length > 6) return err(400, 'Máximo 6 fotos por mensaje.');
+  let peso = 0;
+  for (const d of imagenes) {
+    if (typeof d !== 'string' || !/^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(d)) return err(400, 'Una de las fotos no es válida.');
+    peso += d.length;
+  }
+  if (peso > 4300000) return err(413, 'Las fotos pesan demasiado. Mande menos fotos a la vez.');
+  if (!texto && imagenes.length) texto = 'Revise estas fotos, por favor.';
   if (!texto) return err(400, 'Escriba un mensaje.');
   if (texto.length > 4000) return err(400, 'El mensaje es muy largo (máximo 4000 caracteres).');
+  if (imagenes.length) texto += `\n\n📷 ${imagenes.length} foto${imagenes.length > 1 ? 's' : ''} adjunta${imagenes.length > 1 ? 's' : ''}`;
   const chatId = body.chatId ? String(body.chatId) : null;
   if (chatId && !UUID.test(chatId)) return err(400, 'Chat inválido.');
 
@@ -40,8 +50,10 @@ export async function POST(req) {
   let r;
   try {
     r = c.apiKey
-      ? await responder({ historial: turno.historial, recuerdos: turno.recuerdos, ctx })
-      : await responderDemo(texto, ctx);
+      ? await responder({ historial: turno.historial, recuerdos: turno.recuerdos, ctx, imagenes })
+      : imagenes.length
+        ? { texto: 'En el modo de demostración no puedo leer fotos. Cuando la IA real esté conectada, podré leer sus tickets y fotos.', tokensIn: 0, tokensOut: 0 }
+        : await responderDemo(texto, ctx);
   } catch (e) {
     console.error('[chat:ia]', e?.estado, String(e?.message).slice(0, 200));
     await memoria.revertirTurno({ chatId: turno.chatId, mensajeUsuarioId: turno.mensajeUsuarioId, esNuevo: turno.esNuevo }).catch(() => {});

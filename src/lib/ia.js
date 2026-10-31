@@ -6,11 +6,15 @@ import { HERRAMIENTAS, ejecutarHerramienta } from './herramientas.js';
 import { sistemaEstable, sistemaDinamico } from './prompt.js';
 
 const MAX_ITERACIONES = 6;
-const MAX_TOKENS_SALIDA = 2000;
+const MAX_TOKENS_SALIDA = 4000;
 const PRESUPUESTO_MS = 52000;
 const VENTANA_CARACTERES = 90000; // ~30k tokens de historial como máximo
 
-const ESCRIBEN_MEMORIA = new Set(['guardar_recuerdo', 'proponer_olvido', 'confirmar_olvido', 'cancelar_olvido']);
+const ESCRIBEN_MEMORIA = new Set([
+  'guardar_recuerdo', 'proponer_olvido', 'confirmar_olvido', 'cancelar_olvido',
+  'proponer_folios', 'confirmar_folios', 'cancelar_folios', 'editar_folio', 'marcar_folios',
+  'registrar_pago', 'actualizar_pago', 'guardar_plantilla', 'guardar_recolector',
+]);
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export class ErrorIA extends Error {
@@ -73,11 +77,20 @@ async function llamar(cuerpo, restante) {
 }
 
 // Devuelve { texto, tokensIn, tokensOut }.
-export async function responder({ historial, recuerdos, ctx }) {
+export async function responder({ historial, recuerdos, ctx, imagenes = [] }) {
   const c = cfg();
   const inicio = Date.now();
   const restante = () => PRESUPUESTO_MS - (Date.now() - inicio);
   const mensajes = armarHistorial(historial);
+  // Fotos adjuntas al último mensaje: solo viajan en este turno (no se guardan en la base).
+  const ultimo = mensajes[mensajes.length - 1];
+  if (imagenes.length && ultimo && ultimo.role === 'user') {
+    const bloques = imagenes.map((d) => {
+      const m = /^data:(image\/(?:jpeg|png|webp|gif));base64,(.+)$/.exec(d);
+      return { type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } };
+    });
+    ultimo.content = [...bloques, { type: 'text', text: ultimo.content }];
+  }
   let tokensIn = 0;
   let tokensOut = 0;
   let textoParcial = '';
