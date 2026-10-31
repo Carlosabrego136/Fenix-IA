@@ -339,7 +339,6 @@ export default function Chat() {
                   {m.rol === 'assistant' && (
                     <div className="acciones">
                       <button className="btn-mini" onClick={() => acciones.copiar(m.contenido)}>Copiar respuesta</button>
-                      <button className="btn-mini btn-wa" onClick={() => acciones.whatsapp(m.contenido)}>WhatsApp</button>
                     </div>
                   )}
                 </div>
