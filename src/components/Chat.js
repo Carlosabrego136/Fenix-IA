@@ -50,6 +50,12 @@ const IconoMas = () => (
 const IconoBasura = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3" /></svg>
 );
+const IconoLapiz = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 00-4-4L4 16v4zM13.5 6.5l4 4" /></svg>
+);
+const IconoPin = ({ lleno }) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill={lleno ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4h6l-1 6 3 3H7l3-3-1-6zM12 13v7" /></svg>
+);
 const IconoEnviar = () => (
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 );
@@ -63,6 +69,7 @@ export default function Chat() {
   const [error, setError] = useState('');
   const [menu, setMenu] = useState(false);
   const [navOculta, setNavOculta] = useState(false);
+  const [editando, setEditando] = useState(null);
   useEffect(() => { try { setNavOculta(localStorage.getItem('fenix_nav_oculta') === '1'); } catch {} }, []);
   const [confirmar, setConfirmar] = useState(null);
   const [info, setInfo] = useState(null);
@@ -114,6 +121,37 @@ export default function Chat() {
     setToast(t);
     setTimeout(() => setToast(''), 1800);
   };
+
+  const ordenarChats = (lista) =>
+    [...lista].sort((a, b) => Number(Boolean(b.fijado)) - Number(Boolean(a.fijado)) || String(b.actualizado_en).localeCompare(String(a.actualizado_en)));
+
+  async function guardarNombre() {
+    if (!editando) return;
+    const nuevo = editando.valor.trim().slice(0, 80);
+    const { id } = editando;
+    setEditando(null);
+    const actual = chats.find((c) => c.id === id);
+    if (!nuevo || !actual || nuevo === actual.titulo) return;
+    const antes = actual.titulo;
+    setChats((cs) => cs.map((c) => (c.id === id ? { ...c, titulo: nuevo } : c)));
+    try {
+      await api(`/api/chats/${id}`, { method: 'PATCH', body: JSON.stringify({ titulo: nuevo }) });
+    } catch (e) {
+      setChats((cs) => cs.map((c) => (c.id === id ? { ...c, titulo: antes } : c)));
+      setError(e.message);
+    }
+  }
+
+  async function alternarFijado(c) {
+    const nuevo = !c.fijado;
+    setChats((cs) => ordenarChats(cs.map((x) => (x.id === c.id ? { ...x, fijado: nuevo } : x))));
+    try {
+      await api(`/api/chats/${c.id}`, { method: 'PATCH', body: JSON.stringify({ fijado: nuevo }) });
+    } catch (e) {
+      setChats((cs) => ordenarChats(cs.map((x) => (x.id === c.id ? { ...x, fijado: !nuevo } : x))));
+      setError(e.message);
+    }
+  }
 
   async function abrirChat(id) {
     setMenu(false);
@@ -186,8 +224,9 @@ export default function Chat() {
     try {
       const d = await api('/api/chat', { method: 'POST', body: JSON.stringify({ chatId: origen, mensaje: escrito, imagenes: enviadas.map((f) => f.url) }) });
       setChats((cs) => {
+        const previo = cs.find((c) => c.id === d.chatId);
         const sin = cs.filter((c) => c.id !== d.chatId);
-        return [{ id: d.chatId, titulo: d.titulo, actualizado_en: new Date().toISOString() }, ...sin];
+        return ordenarChats([{ id: d.chatId, titulo: previo?.titulo || d.titulo, actualizado_en: new Date().toISOString(), fijado: Boolean(previo?.fijado) }, ...sin]);
       });
       if (activoRef.current === origen) {
         if (origen === null) fijarActivo(d.chatId);
@@ -259,12 +298,35 @@ export default function Chat() {
         <div className="lista">
           {chats.length === 0 && <div className="lista__vacia">Todavía no hay chats. Escriba su primera pregunta.</div>}
           {chats.map((c) => (
-            <div key={c.id} className={`chat-item ${c.id === activo ? 'activo' : ''}`}>
-              <button className="chat-item__abrir" onClick={() => abrirChat(c.id)}>
-                <span className="chat-item__titulo">{c.titulo}</span>
-                <span className="chat-item__fecha">{fechaCorta(c.actualizado_en)}</span>
+            <div key={c.id} className={`chat-item ${c.id === activo ? 'activo' : ''} ${c.fijado ? 'fijado' : ''}`}>
+              {editando?.id === c.id ? (
+                <input
+                  className="chat-item__editar"
+                  autoFocus
+                  maxLength={80}
+                  aria-label="Nuevo nombre del chat"
+                  value={editando.valor}
+                  onChange={(e) => setEditando({ id: c.id, valor: e.target.value })}
+                  onFocus={(e) => e.target.select()}
+                  onBlur={guardarNombre}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+                    if (e.key === 'Escape') setEditando(null);
+                  }}
+                />
+              ) : (
+                <button className="chat-item__abrir" onClick={() => abrirChat(c.id)}>
+                  <span className="chat-item__titulo">{c.fijado ? '📌 ' : ''}{c.titulo}</span>
+                  <span className="chat-item__fecha">{fechaCorta(c.actualizado_en)}</span>
+                </button>
+              )}
+              <button className={`chat-item__btn ${c.fijado ? "es-fijo" : ""}`} aria-label={c.fijado ? `Quitar de fijados: ${c.titulo}` : `Fijar chat ${c.titulo}`} title={c.fijado ? 'Quitar de fijados' : 'Fijar arriba'} onMouseDown={(e) => e.preventDefault()} onClick={() => alternarFijado(c)}>
+                <IconoPin lleno={c.fijado} />
               </button>
-              <button className="chat-item__borrar" aria-label={`Borrar chat ${c.titulo}`} onClick={() => setConfirmar({ tipo: 'uno', id: c.id, titulo: c.titulo })}>
+              <button className="chat-item__btn" aria-label={`Cambiar nombre de ${c.titulo}`} title="Cambiar nombre" onMouseDown={(e) => e.preventDefault()} onClick={() => setEditando({ id: c.id, valor: c.titulo })}>
+                <IconoLapiz />
+              </button>
+              <button className="chat-item__borrar" aria-label={`Borrar chat ${c.titulo}`} title="Borrar" onMouseDown={(e) => e.preventDefault()} onClick={() => setConfirmar({ tipo: 'uno', id: c.id, titulo: c.titulo })}>
                 <IconoBasura />
               </button>
             </div>

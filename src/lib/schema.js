@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS mensajes (
 );
 CREATE INDEX IF NOT EXISTS mensajes_chat_idx ON mensajes (chat_id, id);
 CREATE INDEX IF NOT EXISTS chats_actualizado_idx ON chats (actualizado_en DESC);
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS fijado BOOLEAN NOT NULL DEFAULT false;
 CREATE TABLE IF NOT EXISTS recuerdos (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   categoria TEXT NOT NULL DEFAULT 'dato',

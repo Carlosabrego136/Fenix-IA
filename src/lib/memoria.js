@@ -124,7 +124,7 @@ const pgB = {
   },
 
   async listarChats() {
-    const r = await M((c) => c.query('SELECT id, titulo, actualizado_en FROM chats ORDER BY actualizado_en DESC LIMIT 100'));
+    const r = await M((c) => c.query('SELECT id, titulo, actualizado_en, fijado FROM chats ORDER BY fijado DESC, actualizado_en DESC LIMIT 100'));
     return r.rows;
   },
   async obtenerMensajes(chatId) {
@@ -143,6 +143,10 @@ const pgB = {
   },
   async renombrarChat(chatId, titulo) {
     const r = await M((c) => c.query('UPDATE chats SET titulo = $2 WHERE id = $1', [chatId, titulo]));
+    return r.rowCount > 0;
+  },
+  async fijarChat(chatId, fijado) {
+    const r = await M((c) => c.query('UPDATE chats SET fijado = $2 WHERE id = $1', [chatId, Boolean(fijado)]));
     return r.rowCount > 0;
   },
 
@@ -301,7 +305,7 @@ const localB = {
     } else s.mensajes = s.mensajes.filter((m) => m.id !== mensajeUsuarioId);
   },
   async listarChats() {
-    return [...L().chats].sort((a, b) => b.actualizado_en.localeCompare(a.actualizado_en)).slice(0, 100).map(({ id, titulo, actualizado_en }) => ({ id, titulo, actualizado_en }));
+    return [...L().chats].sort((a, b) => Number(Boolean(b.fijado)) - Number(Boolean(a.fijado)) || b.actualizado_en.localeCompare(a.actualizado_en)).slice(0, 100).map(({ id, titulo, actualizado_en, fijado }) => ({ id, titulo, actualizado_en, fijado: Boolean(fijado) }));
   },
   async obtenerMensajes(chatId) {
     return L().mensajes.filter((m) => m.chat_id === chatId).map(({ id, rol, contenido, creado_en }) => ({ id, rol, contenido, creado_en }));
@@ -323,6 +327,11 @@ const localB = {
   async renombrarChat(chatId, titulo) {
     const c = L().chats.find((x) => x.id === chatId);
     if (c) c.titulo = titulo;
+    return Boolean(c);
+  },
+  async fijarChat(chatId, fijado) {
+    const c = L().chats.find((x) => x.id === chatId);
+    if (c) c.fijado = Boolean(fijado);
     return Boolean(c);
   },
   async listarRecuerdos() {

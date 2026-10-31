@@ -126,6 +126,12 @@ a { color: var(--acento); }
 .chat-item__borrar {
   width: 44px; height: 44px; border-radius: 12px; border: 0; background: none; color: var(--apagado); display: grid; place-items: center; flex: none;
 }
+.chat-item__btn {
+  width: 34px; height: 44px; border-radius: 10px; border: 0; background: none; color: var(--apagado); display: grid; place-items: center; flex: none; opacity: .75;
+}
+.chat-item__btn:hover { color: var(--acento); background: var(--panel2); opacity: 1; }
+.chat-item__btn.es-fijo { color: var(--acento); opacity: 1; }
+.chat-item__editar { flex: 1; min-width: 0; margin: 6px 4px 6px 6px; padding: 8px 10px; border: 1px solid var(--acento); border-radius: 10px; background: var(--panel); color: var(--texto); font-size: .95rem; }
 .chat-item__borrar:hover { color: var(--error); background: var(--error-bg); }
 .lateral__pie { border-top: 1px solid var(--linea); padding: 12px 14px calc(12px + var(--safe-b)); display: grid; gap: 8px; }
 .enlace-fila {
@@ -277,7 +283,8 @@ a { color: var(--acento); }
   .lateral__nuevo { padding: 4px 14px 10px; }
   .chat-item__abrir { padding: 9px 8px; }
   .chat-item__titulo { font-size: .9rem; }
-  .chat-item__borrar { width: 38px; height: 38px; }
+  .chat-item__borrar { width: 36px; height: 38px; }
+  .chat-item__btn { width: 32px; height: 38px; }
   .enlace-fila { min-height: 42px; font-size: .9rem; }
   .compositor { padding: 8px 10px calc(10px + var(--safe-b)); }
   .compositor textarea { font-size: .98rem; min-height: 46px; padding: 11px 14px; border-radius: 16px; }
