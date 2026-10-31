@@ -24,7 +24,7 @@ export const HERRAMIENTAS = [
         vendedor: { type: 'string', description: 'Parte del nombre o alias del vendedor.' },
         bloque: { type: 'string', description: 'Bloque o categoría del cliente, por ejemplo "24.4" o "general".' },
         guia: { type: 'string', description: 'Parte del número de guía.' },
-        paqueteria: { type: 'string', description: 'Nombre de la paquetería (FedEx, DHL, Estafeta, Paquete Express, Bajapack, Volaris).' },
+        paqueteria: { type: 'string', description: 'Nombre de la paquetería (FedEx, DHL, Estafeta, Paquete Expres, Bajapack, Volaris). La búsqueda ignora mayúsculas, acentos y letras dobles, así que "Express" y "Expres" dan lo mismo.' },
         con_guia: { type: 'boolean', description: 'true = solo con guía; false = solo sin guía.' },
         desde: { type: 'string', description: 'Fecha mínima de captura, formato AAAA-MM-DD.' },
         hasta: { type: 'string', description: 'Fecha máxima de captura, formato AAAA-MM-DD.' },

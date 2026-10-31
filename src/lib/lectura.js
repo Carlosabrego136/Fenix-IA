@@ -10,6 +10,9 @@ const clamp = (n, min, max, def) => {
   return Math.min(max, Math.max(min, v));
 };
 const esc = (s) => String(s).replace(/[\\%_]/g, (m) => '\\' + m);
+// Búsqueda tolerante: sin mayúsculas, sin acentos y sin letras dobles ("Express" = "Expres").
+const plano = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/(.)\1/g, '$1');
+const sqlPlano = (col) => `regexp_replace(translate(lower(${col}), 'áéíóúüñ', 'aeiouun'), '(.)\\1', '\\1', 'g')`;
 const ESTADOS = ['recibido', 'en_transito', 'listo_entrega', 'entregado'];
 
 function local(d) {
@@ -69,13 +72,13 @@ export async function buscarPaquetes(f = {}) {
   const w = [];
   if (estados.length) w.push(`b.estado = ANY(${p(estados)}::text[])`);
   if (f.bloque) w.push(`b.bloque = ${p(String(f.bloque))}`);
-  if (f.cliente) w.push(`b.cliente ILIKE ${p('%' + esc(f.cliente) + '%')}`);
+  if (f.cliente) w.push(`${sqlPlano('b.cliente')} ILIKE ${p('%' + esc(plano(f.cliente)) + '%')}`);
   if (f.vendedor) {
-    const v = p('%' + esc(f.vendedor) + '%');
-    w.push(`(b.vendedor ILIKE ${v} OR b.vendedor_alias ILIKE ${v})`);
+    const v = p('%' + esc(plano(f.vendedor)) + '%');
+    w.push(`(${sqlPlano('b.vendedor')} ILIKE ${v} OR ${sqlPlano('b.vendedor_alias')} ILIKE ${v})`);
   }
   if (f.guia) w.push(`b.guia ILIKE ${p('%' + esc(f.guia) + '%')}`);
-  if (f.paqueteria) w.push(`b.paqueteria ILIKE ${p('%' + esc(f.paqueteria) + '%')}`);
+  if (f.paqueteria) w.push(`${sqlPlano('b.paqueteria')} ILIKE ${p('%' + esc(plano(f.paqueteria)) + '%')}`);
   if (f.con_guia === true) w.push('b.guia IS NOT NULL');
   if (f.con_guia === false) w.push('b.guia IS NULL');
   if (f.desde) w.push(`b.capturado_en >= ${p(String(f.desde))}::date`);
@@ -118,7 +121,7 @@ function buscarPaquetesDemo(f) {
   const d = demoDatos();
   const cli = Object.fromEntries(d.clientes.map((c) => [c.id, c]));
   const ven = Object.fromEntries(d.vendedores.map((v) => [v.id, v]));
-  const inc = (a, b) => String(a || '').toLowerCase().includes(String(b).toLowerCase());
+  const inc = (a, b) => plano(a).includes(plano(b));
   let rows = d.paquetes.map((p) => ({
     id: p.id, estado: p.estado, guia: p.guia, paqueteria: p.paqueteria, cliente: cli[p.cliente]?.nombre ?? null,
     tel_cliente: cli[p.cliente]?.telefono || null, vendedor: ven[p.vendedor]?.nombre ?? null, vendedor_alias: ven[p.vendedor]?.alias ?? null,
