@@ -4,30 +4,32 @@
 // IMPORTANTE: aquí NO van números de tarjeta, CLABE ni datos bancarios.
 
 export const RECUERDOS = [
-  ['definicion', 'Folio = número de guía de PZ Express (Paquete Express): es con lo que se busca el paquete en la sucursal para que lo entreguen. Cada ticket trae una fecha de «Recepción».'],
+  ['definicion', 'Folio = el «Número de guía» con el que se busca el paquete en PZ Express. Hay dos formatos: el ticket DIGITAL («Comprobante de envío», guía de unos 6 dígitos tipo «32 2283», con Recepción en fecha y hora) y la guía MANUAL («Guía servicio red de sucursales», número tipo «S55658», con la fecha escrita a mano). Los días se cuentan desde la fecha de Recepción/Fecha.'],
   ['regla', 'Los 14 días de PZ Express se cuentan desde la fecha de Recepción del ticket. El día de Recepción es el día 0 y el último día SIN multa es Recepción + 13 (ejemplo: recibido el 10 → vence el 23).'],
-  ['regla', 'Al cumplirse el día 14 PZ Express cobra multa de $50 (por confirmar si es una sola vez o si sigue subiendo). Al cumplirse el día 60 la paquetería decomisa el paquete.'],
-  ['preferencia', 'Avisarle de los folios por vencer desde el día 10 (por confirmar los días exactos de aviso: por ahora avisar en 10, 12 y 13, y marcar los que ya cumplieron 14).'],
+  ['regla', 'Multa de PZ Express: fija de $50, no sube. Se cobra al cumplir el día 14 y cubre el almacenamiento del día 14 al 59. Al cumplirse el día 60 la paquetería decomisa el paquete.'],
+  ['preferencia', 'Avisarle de los folios por vencer en los días 10, 12 y 13 (confirmado por la dueña), y marcar los que ya cumplieron 14.'],
   ['dato', 'Se recogen más de 40 folios por semana, en 2 sucursales principales: Río y 5 y 10.'],
-  ['definicion', 'Los folios se duplican porque el mismo cliente o recolector foráneo, sin llevar control, reenvía un ticket días después (ej. lo mandan el día 10 y otra vez el 16). Antes de registrar un folio hay que revisar si ya existe.'],
-  ['definicion', 'Etiqueta de entrega: «AYORA/nombre/número» identifica al recolector foráneo (el número es de 1 a 11). Solo «AYORA» = la entrega es directo con ella. Quien no está registrado entrega a la paquetería con destino sucursal RIO. Para saber quién es el recolector: buscar_recolectores.'],
+  ['definicion', 'Los tickets (con el folio para recoger) se los mandan clientes con trato directo y recolectores foráneos; los foráneos tienen sus propios clientes y ella solo rinde cuentas al recolector. Se duplican porque quien los manda no lleva control y reenvía el mismo ticket días después (ej. el 10 y otra vez el 16). Antes de registrar un folio hay que revisar si ya existe. Los avisos de vencimiento de un foráneo van dirigidos a su recolector.'],
+  ['definicion', 'Etiqueta de entrega: «AYORA/nombre/número» identifica al recolector foráneo (número 1 a 11). Solo «AYORA» = entrega directo con ella. Quien no está registrado entrega a paquetería con destino sucursal RIO. En los tickets de ejemplo la etiqueta NO aparecía en remitente/destinatario; si el recolector no se identifica claro, preguntarle a la dueña y NO adivinar. Para saber quién es: buscar_recolectores.'],
   ['dato', 'Recolectores foráneos (etiqueta → ciudad): 1 Carreon (Iguala Gro), 2 Brenda (Ometepec Gro), 3 Rosa (Acapulco), 4 Mari (Frontera Tabasco), 5 Urzula (Acapulco), 6 Diana (San Luis Acatlán), 7 Karen (Veracruz), 8 Lupita (San Marcos y Las Vigas Gro), 9 Tina (Puerto Vallarta), 10 Karean (Acapulco), 11 Luna Mia (Chilpancingo y Acapulco).'],
   ['regla', 'Recolección: máximo 5 recolecciones (5 fines de semana) de almacenaje por caja; no se permiten más por garantía y responsabilidad. La primera recolección empieza al recibir el primer paquete (viernes). Se mandan fotos de los paquetes el mismo día.'],
   ['regla', 'Al finalizar la recolección, el cliente tiene 48 horas para verificar que su listado de compras esté completo. Si quiere envío inmediato, se cierra su caja y se cotiza.'],
   ['regla', 'Después de cotizar, el cliente tiene 3 semanas para pagar; si no paga, como recolectores tienen autorización de decomisar la caja por falta de pago.'],
-  ['regla', 'Calendario de pago → salida (de la dinámica): pago domingo sale lunes; lunes→martes; martes→miércoles; miércoles→jueves; jueves→viernes. Por confirmar: la cotización de ejemplo solo lista domingo a miércoles y dice pagar a más tardar el miércoles, y la imagen dice que cotiza en sábado para salir lunes, martes y miércoles. Si hay diferencia, avisarle y usar el de la plantilla que se esté mandando.'],
+  ['regla', 'Calendario de envíos (confirmado): cotiza sábado y domingo y las cajas salen de lunes a jueves según el día del pago. Lo ideal es que el cliente pague un día antes: pago domingo sale lunes; lunes→martes; martes→miércoles; miércoles→jueves. El último pago de la semana es el miércoles (sale el jueves). Clientes LOCALES de Ensenada: ella entrega personalmente en su domicilio de sábado a jueves, previa confirmación del horario.'],
   ['regla', 'El costo de envío incluye servicio, sello aduanal y guía. En terrestre, el agente aduanal puede determinar impuestos adicionales que corren por cuenta del cliente y se pagan de inmediato. La información de una caja solo se da al titular.'],
-  ['regla', 'Peso volumétrico = largo x ancho x alto (cm) / 5000. Ejemplo: 62x46x48 cm = 27.4 kg; con peso real 24.9 kg se facturó como 30 kg (la regla de redondeo está por confirmar). Los precios salen de las tarifas de su página web y del apartado de cotizaciones de su sistema de clientes: nunca inventarlos.'],
+  ['regla', 'Peso volumétrico = largo x ancho x alto (cm) / 5000. El peso facturable es el mayor entre el real y el volumétrico, y se cobra por bloques de 5 kg (ejemplo: 62x46x48 = 27.4 kg → 30 kg). Los precios salen de su tabulador/tarifas: nunca inventarlos.'],
   ['dato', 'Paqueterías con las que envía: FedEx, DHL, Estafeta, Volaris y Paquete Express (PZ Express). Envía a todo México, por vía terrestre o aérea. Salidas de lunes a jueves. También envía pallets (pago de mercancía directo con bodega; el costo depende de la ciudad/estado).'],
-  ['dato', 'Servicio en Ensenada: entrega de domingo a jueves, previa confirmación del horario, en Bustamante 739, Zaragoza. Se agrega al cliente a un grupo informativo de WhatsApp. Tarifa: 1 paquete tamaño 1 kilo volumétrico $20; más grandes según su volumen; 10 kilos o más: tabulador de Bajapack y paga solo el 50%.'],
+  ['dato', 'Servicio en Ensenada: ella entrega personalmente de sábado a jueves, previa confirmación del horario, en Bustamante 739, Zaragoza (su domicilio). Se agrega al cliente a un grupo informativo de WhatsApp. Tarifa: 1 paquete tamaño 1 kilo volumétrico $20; más grandes según su volumen; 10 kilos o más: tabulador de Bajapack y paga solo el 50%.'],
   ['dato', 'La Ruta del Saldo (Ensenada–Tijuana–Rosarito): «Rafael Ayora y Fany Molina, tus recolectores de confianza. Compramos, recolectamos, enviamos». Contacto 646 103 1926. Redes: WhatsApp, Facebook y TikTok «Envios Ayora».'],
-  ['dato', 'Contacto de FÉNIX Recolección y Envíos: WhatsApp 744 181 5753 y sitio www.fenixrecoleccion.mx; Facebook de Rafael Ayora Barrientos. (Por confirmar qué teléfono se da para qué: 744 181 5753 vs 646 103 1926.)'],
+  ['dato', 'Nombre del negocio ante clientes: ENVIOS AYORA (FÉNIX Recolección y Envíos). Teléfonos: el principal es 646 103 1926; también 744 181 5753. Sitio: www.fenixrecoleccion.mx. Facebook de Rafael Ayora Barrientos.'],
   ['dato', 'En Tijuana trabajan en el distrito de recolección más importante, dentro del PUNTO en 5 y 10. Los clientes pueden comprar con todos los bazares independientes registrados en FÉNIX; el pago de mercancía es directo con cada bazar. Antes de pagar a un vendedor se verifica su credencial vigente de FÉNIX.'],
-  ['persona', 'La dueña se presenta ante los clientes como Fany Ayora (con Rafael Ayora). En algunas imágenes aparece como Fany Molina: por confirmar cuál nombre usar y dónde.'],
+  ['persona', 'La dueña se presenta ante los clientes como Fany Ayora (con Rafael Ayora) en la dinámica; en la Ruta del Saldo aparece Fany Molina. El nombre del negocio que se usa es ENVIOS AYORA.'],
   ['preferencia', 'Textos para publicar: mezcla entre formal y cercano, ni muy formal ni gracioso. Por ahora solo publica en Facebook; también tiene Instagram y TikTok. Ejemplos y textos fijos están en las plantillas.'],
   ['regla', 'Cuando la etiquetan en una publicación pidiendo información: responde «te dejo información en tu inbox», pone su imagen informativa y en el inbox pega el mensaje de la dinámica (plantilla dinamica_recoleccion). Pide el WhatsApp del cliente y qué artículos le interesan.'],
-  ['regla', 'Pagos: cada semana manda a sus clientes el total y la fecha límite (ej. jueves 2:00 pm). Revisa en Messenger si ya subieron el comprobante; si está, lo quita de pendientes, empaca y entrega el viernes; si no está, les escribe pidiendo el comprobante (plantilla pedir_comprobante). La IA no ve Messenger ni puede verificar depósitos.'],
+  ['regla', 'Pagos: cada semana manda a sus clientes el total y la fecha límite (ej. jueves 2:00 pm). Revisa en Messenger si ya subieron el comprobante; si está, lo quita de pendientes, empaca y entrega el viernes; si no, les escribe pidiendo el comprobante (plantilla pedir_comprobante). La IA no ve Messenger ni verifica depósitos.'],
   ['regla', 'La IA no contesta sola en WhatsApp ni Facebook: deja el mensaje listo para que la dueña lo copie y pegue. Los datos bancarios los adjunta ella misma como imagen; la IA nunca los escribe.'],
+  ['regla', 'Tabulador 2026 de cotización: de 1 a 60 kg en escalones de 5 kg, con precio aéreo, terrestre y Baja Pack Express (solo clientes de zona fronteriza); zona extendida suma $280 una vez; más de 60 kg es cotización especial a mano. Siempre se cotiza con la herramienta cotizar, nunca de memoria.'],
+  ['regla', 'Lectura de tickets: del ticket digital se toma Número de guía, Recepción, Sucursal (origen), Remitente, Destinatario, Destino, Tamaño y Precio. De la guía manual: No., Fecha (manuscrita), Cedi origen y destino, Envía, Recibe y las notas escritas (ej. «Cajón 29 envíos Ayora»). Lo manuscrito se confirma siempre con la dueña antes de guardar.'],
 ];
 
 const DINAMICA = `Dinámica de Recolección y Envíos — FÉNIX ENVIOS AYORA
@@ -57,7 +59,7 @@ Pago en Domingo: Salida a destino Lunes
 Pago en Lunes: Salida a destino Martes
 Pago en Martes: Salida a destino el Miércoles
 Pago en Miércoles: Salida a destino el Jueves
-Pago en Jueves: Salida a destino el Viernes
+(El miércoles es el último día de pago de la semana.)
 
 ⚠️ Aviso de Seguridad Imprescindible
 Antes de realizar cualquier pago al vendedor, verifique que este cuente con su credencial vigente de FÉNIX.
@@ -100,7 +102,7 @@ Tu cotización ya incluye la boleta mínima de aduana para que tu caja pueda sal
 
 Adjunto la imagen de la cuenta y política de envío.`;
 
-const COMPROBANTE = `Hola {{nombre_cliente}}, buen día. Te escribo para recordarte que quedo al pendiente de tu comprobante de pago para confirmar tu envío. El total de esta semana es {{total}} y el pago debe quedar a más tardar el {{fecha_limite}} para que tu caja salga en la misma semana. En cuanto lo recibamos lo confirmamos y preparamos tu paquete. ¡Gracias!`;
+const COMPROBANTE = `Hola, buenas noches. Por favor me confirma su pago para poder entregar mañana a su recolector.`;
 
 const VISUAL = `Imagen informativa de la dinámica (se manda junto con el mensaje de la dinámica):
 Fany Ayora, recolectora del Proyecto FÉNIX.
@@ -121,7 +123,7 @@ Fany Ayora, recolectora del Proyecto FÉNIX.
 const ENSENADA = `FÉNIX Recolección y Envíos — ENSENADA
 
 Horario y cobertura de entrega
-Entregamos de domingo a jueves (previa confirmación del horario).
+Entregamos de sábado a jueves (previa confirmación del horario).
 Dirección de entrega: Bustamante 739, Zaragoza.
 
 Comunicación
@@ -175,8 +177,8 @@ Gracias.
 export const PLANTILLAS = [
   ['dinamica_recoleccion', 'Mensaje de la dinámica de recolección y envíos (se pega en el inbox cuando la etiquetan).', DINAMICA],
   ['cotizacion', 'Cotización de envío con peso volumétrico. Los precios los pone ella; nunca se inventan.', COTIZACION],
-  ['pedir_comprobante', 'BORRADOR (por confirmar con la dueña): recordatorio para pedir el comprobante de pago.', COMPROBANTE],
-  ['dinamica_visual', 'Texto de la imagen informativa de la dinámica (Fany Ayora, Proyecto FÉNIX).', VISUAL],
+  ['pedir_comprobante', 'Mensaje con el que pide el comprobante de pago (su texto).', COMPROBANTE],
+  ['dinamica_visual', 'Texto de la imagen informativa (transcrito tal cual; el calendario vigente está en la memoria).', VISUAL],
   ['ensenada_servicio', 'Servicio en Ensenada: horario, dirección de entrega y tarifas.', ENSENADA],
   ['servicio_vendedores', 'Mensaje para atraer comercios y vendedores a registrarse.', VENDEDORES],
   ['ruta_del_saldo', 'Texto de La Ruta del Saldo (Ensenada–Tijuana–Rosarito).', RUTA],
@@ -198,3 +200,8 @@ export const RECOLECTORES = [
   [10, 'Karean', 'Acapulco', 'foraneo'],
   [11, 'Luna Mia', 'Chilpancingo y Acapulco', 'foraneo'],
 ];
+
+// Textos de versiones anteriores de esta semilla (huella sha256 abreviada). El seed los reemplaza solo si
+// siguen EXACTAMENTE igual en la base, así nunca pisa algo que la dueña corrigió.
+export const OBSOLETOS_RECUERDOS = ['47f4c3c0f10f9d55', 'e59bd1f9b127359c', 'de1bc84069b60383', 'fbde14ca7e19e274', 'a3869423ec519c7d', '19759c24b3a556ad', '7a234d18968ea97b', 'f7a9d1d956527312', 'c57d64bc60a17f75', '5d6d47e27cd594e6', 'f048e9148c51bbe1'];
+export const PLANTILLAS_ANTERIORES = { dinamica_recoleccion: '9c8a05213e791408', pedir_comprobante: 'b964cf443a3d252b', ensenada_servicio: 'e396d69a9a1f1b28', dinamica_visual: 'f51ca76567a1d2bf' };

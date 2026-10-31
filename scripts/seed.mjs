@@ -3,7 +3,9 @@
 // Uso:  npm run db:seed        (o: npm run db:seed -- --forzar)
 import './cargar-env.mjs';
 import { conBasePg } from '../src/lib/memoria.js';
-import { RECUERDOS, PLANTILLAS, RECOLECTORES } from '../src/lib/semilla.js';
+import crypto from 'node:crypto';
+import { RECUERDOS, PLANTILLAS, RECOLECTORES, OBSOLETOS_RECUERDOS, PLANTILLAS_ANTERIORES } from '../src/lib/semilla.js';
+const huella = (t) => crypto.createHash('sha256').update(t).digest('hex').slice(0, 16);
 import { MAX_RECUERDOS } from '../src/lib/memoria.js';
 
 if (!process.env.DATABASE_URL_MEMORIA) {
@@ -18,7 +20,11 @@ try {
   for (const [, , c] of PLANTILLAS) if (PROHIBIDO.test(c)) throw new Error('Una plantilla trae datos bancarios.');
 
   const r = await conBasePg(async (c) => {
-    const out = { recuerdos: 0, yaEstaban: 0, plantillas: 0, recolectores: 0, omitidosPorLimite: 0 };
+    const out = { reemplazados: 0, plantillasActualizadas: 0, recuerdos: 0, yaEstaban: 0, plantillas: 0, recolectores: 0, omitidosPorLimite: 0 };
+    // 1) quita versiones viejas de la semilla que no se hayan tocado
+    const todos = await c.query('SELECT id, contenido FROM recuerdos');
+    const viejos = todos.rows.filter((r) => OBSOLETOS_RECUERDOS.includes(huella(r.contenido))).map((r) => r.id);
+    if (viejos.length) { await c.query('DELETE FROM recuerdos WHERE id = ANY($1::bigint[])', [viejos]); out.reemplazados = viejos.length; }
     let total = (await c.query('SELECT count(*)::int AS n FROM recuerdos')).rows[0].n;
     for (const [cat, texto] of RECUERDOS) {
       const ya = await c.query('SELECT 1 FROM recuerdos WHERE contenido = $1', [texto]);
@@ -28,6 +34,12 @@ try {
       total++; out.recuerdos++;
     }
     for (const [nombre, descripcion, contenido] of PLANTILLAS) {
+      const ex = await c.query('SELECT contenido FROM plantillas WHERE nombre = $1', [nombre]);
+      if (ex.rowCount && PLANTILLAS_ANTERIORES[nombre] === huella(ex.rows[0].contenido) && ex.rows[0].contenido !== contenido) {
+        await c.query('UPDATE plantillas SET contenido_anterior = contenido, contenido = $2, descripcion = $3, actualizado_en = now() WHERE nombre = $1', [nombre, contenido, descripcion]);
+        out.plantillasActualizadas++;
+        continue;
+      }
       const q = forzar
         ? `INSERT INTO plantillas (nombre, descripcion, contenido) VALUES ($1,$2,$3)
            ON CONFLICT (nombre) DO UPDATE SET contenido_anterior = plantillas.contenido, contenido = EXCLUDED.contenido, descripcion = EXCLUDED.descripcion, actualizado_en = now()`
@@ -48,7 +60,7 @@ try {
     }
     return out;
   });
-  console.log(`✔ Listo. Recuerdos nuevos: ${r.recuerdos} (ya estaban ${r.yaEstaban}${r.omitidosPorLimite ? `, omitidos por límite ${r.omitidosPorLimite}` : ''}). Plantillas escritas: ${r.plantillas}. Recolectores escritos: ${r.recolectores}.`);
+  console.log(`✔ Listo. Recuerdos nuevos: ${r.recuerdos} (ya estaban ${r.yaEstaban}${r.omitidosPorLimite ? `, omitidos por límite ${r.omitidosPorLimite}` : ''}). Reemplazados por versión nueva: ${r.reemplazados}. Plantillas nuevas: ${r.plantillas}, actualizadas: ${r.plantillasActualizadas}. Recolectores escritos: ${r.recolectores}.`);
   process.exit(0);
 } catch (e) {
   console.error('✘ No se pudo cargar:', e.code || '', e.message);

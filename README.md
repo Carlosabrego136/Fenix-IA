@@ -86,7 +86,7 @@ npm run db:check   # prueba la lectura de envios_ayora y valida las columnas
 npm run db:seed    # carga lo que la dueña ya explicó: reglas, plantillas y recolectores (seguro repetirlo)
 ```
 
-`db:seed` no duplica nada; con `npm run db:seed -- --forzar` vuelve a escribir las plantillas y los recolectores
+`db:seed` no duplica nada y, si una regla o plantilla sembrada cambió en una versión nueva, la reemplaza solo cuando nadie la ha modificado; con `npm run db:seed -- --forzar` vuelve a escribir las plantillas y los recolectores
 con el texto original (guarda la versión anterior de cada plantilla).
 
 Si `db:check` marca una columna distinta a la esperada, avísame y se ajusta en `src/lib/lectura.js`.
@@ -105,11 +105,13 @@ Abrir el link de Vercel en Chrome (Android) → menú ⋮ → **Instalar aplicac
 - **Plantillas** (`/plantillas`): dinámica, cotización, servicios, publicaciones. La IA las usa tal cual. No se aceptan números de tarjeta ni CLABE.
 - **Cotizaciones**: la IA calcula el peso volumétrico (largo × ancho × alto ÷ 5000) y arma el mensaje con la plantilla; **nunca inventa precios**.
 - **Recolectores foráneos** 1–11 (para saber quién es quién en la etiqueta).
-- Pendiente de confirmar con la dueña (la IA lo avisa): si la multa de $50 es única, el redondeo del peso facturable, el calendario de pago→salida (hay versiones distintas) y las tarifas.
+- Reglas confirmadas por la dueña: multa fija de $50 desde el día 14 (sin aumentos; decomiso a los 60); avisos en 10, 12 y 13; peso facturable por bloques de 5 kg; cotiza sábado y domingo y envía de lunes a jueves (último pago el miércoles); Ensenada local de sábado a jueves.
+- Cotizaciones: la herramienta `cotizar` usa el tabulador 2026 de `cotizador.js` (1–60 kg en escalones de 5 kg, aéreo/terrestre/Baja Pack Express, zona extendida +$280; más de 60 kg es cotización especial). Si cambian los precios, se editan en `TABULADOR` de `src/lib/negocio.js`.
+- Pendiente: imagen de precios nacional, dónde aparece la etiqueta del recolector foráneo en el ticket, ejemplos de publicaciones y qué destinos son zona extendida.
 
 ## Lo que el sistema NO tiene todavía
 
-El sistema de envíos (`envios_ayora`) no guarda un estado de "guía recogida" ni las tarifas (están en la página web y en el sistema de clientes). La IA lo dice con honestidad. Los folios y pagos de esta etapa viven en la base `fenix_ia`.
+El sistema de envíos (`envios_ayora`) no guarda un estado de "guía recogida" ni las tarifas (las tarifas viven en el tabulador de la herramienta `cotizar`). La IA lo dice con honestidad. Los folios y pagos de esta etapa viven en la base `fenix_ia`.
 
 ## Desarrollo local
 

@@ -140,7 +140,8 @@ export const HERRAMIENTAS = [
               fecha_recepcion: { type: 'string', description: 'Fecha de «Recepción» del ticket, AAAA-MM-DD.' },
               sucursal_origen: { type: 'string' }, sucursal_destino: { type: 'string' },
               remitente: { type: 'string' }, destinatario: { type: 'string' },
-              tamano: { type: 'string' }, precio: { type: 'number' }, notas: { type: 'string' },
+              tamano: { type: 'string' }, precio: { type: 'number' }, notas: { type: 'string', description: 'Ej.: formato (digital/manual) o lo escrito a mano como "Cajón 29 envíos Ayora".' },
+              recolector_numero: { type: 'integer', description: 'SOLO si la etiqueta lo dice o la dueña lo confirmó (1 a 11).' },
             },
             required: ['folio', 'fecha_recepcion'],
           },
@@ -185,7 +186,7 @@ export const HERRAMIENTAS = [
   },
   {
     name: 'resumen_folios',
-    description: 'Estado de los folios pendientes: cuáles tienen hoy/mañana su último día sin multa, cuáles ya cumplieron 14 días, cuáles están a punto de decomiso (60) y cuáles están a 10-11 días. Úsala para "qué folios están por vencer", "cómo van mis folios".',
+    description: 'Estado de los folios pendientes: cuáles tienen hoy/mañana su último día sin multa, cuáles ya cumplieron 14 días, cuáles están a punto de decomiso (60) y cuáles están a 10-11 días; también los agrupa por recolector foráneo para avisarle a cada uno. Úsala para "qué folios están por vencer", "cómo van mis folios".',
     input_schema: { type: 'object', properties: {} },
   },
   {
@@ -251,8 +252,26 @@ export const HERRAMIENTAS = [
     },
   },
   {
+    name: 'cotizar',
+    description:
+      'Cotiza con el tabulador 2026 de la dueña (1 a 60 kg, escalones de 5 kg): calcula peso volumétrico, peso facturable y precios aéreo/terrestre (y Baja Pack Express para clientes de zona fronteriza), y devuelve el mensaje listo con su formato. Úsala SIEMPRE para cotizar; nunca calcules ni inventes precios tú. Más de 60 kg = cotización especial a mano.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        cliente: { type: 'string', description: 'Nombre del cliente para el saludo (opcional).' },
+        cajas: {
+          type: 'array',
+          items: { type: 'object', properties: { peso_real_kg: { type: 'number' }, largo_cm: { type: 'number' }, ancho_cm: { type: 'number' }, alto_cm: { type: 'number' } } },
+        },
+        zona_extendida: { type: 'boolean', description: 'true si el destino es zona extendida (+$280 una sola vez). Pregúntaselo si no sabes.' },
+        incluir_bajapack: { type: 'boolean', description: 'true solo si el cliente es de zona fronteriza (agrega la opción Baja Pack Express).' },
+      },
+      required: ['cajas'],
+    },
+  },
+  {
     name: 'peso_volumetrico',
-    description: 'Calcula el peso volumétrico (largo x ancho x alto / 5000) para cotizar. No calcula precios.',
+    description: 'Calcula el peso volumétrico (largo x ancho x alto / 5000) y el peso facturable por bloques de 5 kg para cotizar. No calcula precios.',
     input_schema: {
       type: 'object',
       properties: { largo_cm: { type: 'number' }, ancho_cm: { type: 'number' }, alto_cm: { type: 'number' }, peso_real_kg: { type: 'number' }, cajas: { type: 'integer' } },
@@ -365,6 +384,8 @@ async function correr(nombre, i, ctx) {
       return N.obtenerPlantilla({ nombre: str(i.nombre, 80) });
     case 'guardar_plantilla':
       return N.guardarPlantilla({ nombre: i.nombre, descripcion: i.descripcion, contenido: i.contenido });
+    case 'cotizar':
+      return N.cotizar({ cliente: str(i.cliente, 80), cajas: Array.isArray(i.cajas) ? i.cajas : [], zona_extendida: i.zona_extendida === true, incluir_bajapack: i.incluir_bajapack === true });
     case 'peso_volumetrico':
       return N.pesoVolumetrico({ largo_cm: i.largo_cm, ancho_cm: i.ancho_cm, alto_cm: i.alto_cm, peso_real_kg: i.peso_real_kg, cajas: i.cajas });
     case 'buscar_recolectores':

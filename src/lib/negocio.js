@@ -28,7 +28,7 @@ export function situacion(fechaRecepcion, hoy = hoyISO()) {
   let nivel = 'ok';
   let texto = `lleva ${dias} día(s); último día sin multa: ${ultimo}`;
   if (dias >= DIA_DECOMISO) { nivel = 'decomiso'; texto = `lleva ${dias} días: ya pasó el límite de 60, la paquetería puede decomisarlo`; }
-  else if (dias >= DIA_MULTA) { nivel = 'multa'; texto = `lleva ${dias} días: ya cumplió 14, probablemente ya tiene multa de $50 (por confirmar); decomiso a los 60 (faltan ${DIA_DECOMISO - dias})`; }
+  else if (dias >= DIA_MULTA) { nivel = 'multa'; texto = `lleva ${dias} días: ya le corresponde la multa fija de $50 (cubre el almacenamiento del día 14 al 59); decomiso a los 60 (faltan ${DIA_DECOMISO - dias})`; }
   else if (dias === 13) { nivel = 'hoy_ultimo_dia'; texto = 'HOY es el último día sin multa'; }
   else if (dias === 12) { nivel = 'manana_ultimo_dia'; texto = 'mañana es el último día sin multa'; }
   else if (dias >= 10) { nivel = 'atencion'; texto = `lleva ${dias} días; el último día sin multa es el ${ultimo} (faltan ${13 - dias})`; }
@@ -57,8 +57,82 @@ export function pesoVolumetrico({ largo_cm, ancho_cm, alto_cm, peso_real_kg, caj
     peso_volumetrico_kg: Math.round(vol * 10) / 10,
     peso_real_kg: real,
     peso_mayor_kg: Math.round(mayor * 10) / 10,
-    formula: 'largo x ancho x alto / 5000',
-    aviso: 'El peso facturable final lo redondea la dueña con su regla (en su ejemplo 27.4 kg se facturó como 30 kg). Esa regla de redondeo aún no está confirmada: no la inventes, pregúntale si no la sabes. Los precios salen de sus tarifas, nunca los inventes.',
+    peso_facturable_kg: Math.max(5, Math.ceil(Math.round(mayor * 100) / 100 / 5) * 5),
+    formula: 'largo x ancho x alto / 5000; se factura el mayor entre peso real y volumétrico, por bloques de 5 kg',
+    aviso: 'Los cobros son por bloques de 5 kg (27.4 kg se factura como 30 kg). Los precios salen de sus tarifas/tabulador: si no los tienes, no los inventes; déjalos en blanco o pídeselos.',
+  };
+}
+
+/* ------------------------------ cotizador (tabulador 2026 de la dueña) ------------------------------ */
+
+// Mismo tabulador que su cotizador (pages/admin/cotizador.js del sistema de Ensenada).
+// Si ella cambia precios, se actualiza aquí.
+export const TABULADOR = [
+  { kg: 1, aereo: 950, terrestre: 875, bajapack: 600 },
+  { kg: 5, aereo: 1000, terrestre: 900, bajapack: 650 },
+  { kg: 10, aereo: 1400, terrestre: 1050, bajapack: 850 },
+  { kg: 15, aereo: 1550, terrestre: 1250, bajapack: 1000 },
+  { kg: 20, aereo: 1700, terrestre: 1450, bajapack: 1200 },
+  { kg: 25, aereo: 2000, terrestre: 1650, bajapack: 1500 },
+  { kg: 30, aereo: 2300, terrestre: 1850, bajapack: 1650 },
+  { kg: 35, aereo: 2600, terrestre: 2000, bajapack: 1800 },
+  { kg: 40, aereo: 2800, terrestre: 2150, bajapack: 2100 },
+  { kg: 45, aereo: 3100, terrestre: 2300, bajapack: 2250 },
+  { kg: 50, aereo: 3350, terrestre: 2450, bajapack: 2350 },
+  { kg: 55, aereo: 3650, terrestre: 2700, bajapack: 2450 },
+  { kg: 60, aereo: 3900, terrestre: 2900, bajapack: 2600 },
+];
+export const CARGO_ZONA_EXTENDIDA = 280;
+const ORDINALES = ['1ra', '2da', '3ra', '4ta', '5ta', '6ta', '7ma', '8va'];
+const moneda = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 }).format(n);
+const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) && n > 0 ? n : 0; };
+
+export function cotizar({ cliente, cajas, zona_extendida = false, incluir_bajapack = false }) {
+  const lista = (Array.isArray(cajas) ? cajas : []).slice(0, 8);
+  if (!lista.length) return { error: 'Faltan las cajas (peso real y/o medidas).' };
+  const detalle = [];
+  for (const [i, c] of lista.entries()) {
+    const real = num(c?.peso_real_kg), l = num(c?.largo_cm), a = num(c?.ancho_cm), h = num(c?.alto_cm);
+    const medidas = l && a && h;
+    if (!real && !medidas) return { error: `La caja ${i + 1} necesita peso real o las tres medidas.` };
+    if (l > 1000 || a > 1000 || h > 1000 || real > 5000) return { error: `Las medidas de la caja ${i + 1} no parecen correctas.` };
+    const vol = medidas ? (l * a * h) / 5000 : 0;
+    const facturable = Math.max(real, vol);
+    const tier = TABULADOR.find((t) => facturable <= t.kg + 1e-9) || null;
+    detalle.push({ indice: i, real, vol, facturable, tier, l, a, h, medidas });
+  }
+  const ok = detalle.filter((d) => d.tier);
+  const extra = zona_extendida ? CARGO_ZONA_EXTENDIDA : 0;
+  const total = (k) => ok.reduce((n, d) => n + d.tier[k], 0) + extra;
+  const totales = { aereo: total('aereo'), terrestre: total('terrestre'), bajapack: total('bajapack') };
+  const multi = detalle.length > 1;
+
+  let t = `Hola${cliente ? ' ' + cliente : ''}, que tal.. te dejo cotización de envío.\n\n`;
+  for (const d of detalle) {
+    t += `${multi ? `${ORDINALES[d.indice]}. caja` : '1 caja'} · Peso real ${d.real || 0} kg\n`;
+    if (d.medidas) t += `Medidas: ${d.l}x${d.a}x${d.h} cm · Vol. ${d.vol.toFixed(1)} kg\n`;
+    t += `Peso facturable: ${d.tier ? d.tier.kg : d.facturable.toFixed(1)} kg\n`;
+    if (!d.tier) t += '⚠️ Esta caja supera los 60 kg del tabulador, necesita cotización especial.\n';
+    else if (multi) {
+      t += `Aéreo: ${moneda(d.tier.aereo)}  ·  Terrestre: ${moneda(d.tier.terrestre)}`;
+      if (incluir_bajapack) t += `  ·  Baja Pack Express: ${moneda(d.tier.bajapack)}`;
+      t += '\n';
+    }
+    t += '\n';
+  }
+  t += multi ? `Total aéreo: ${moneda(totales.aereo)}\nTotal terrestre: ${moneda(totales.terrestre)}\n` : `Aéreo: ${moneda(totales.aereo)}\nTerrestre: ${moneda(totales.terrestre)}\n`;
+  if (incluir_bajapack) t += multi ? `Total Baja Pack Express: ${moneda(totales.bajapack)}\n` : `Baja Pack Express: ${moneda(totales.bajapack)}\n`;
+  if (zona_extendida) t += `\n(Incluye cargo de zona extendida de ${moneda(CARGO_ZONA_EXTENDIDA)})\n`;
+  t += '\nEl pago debe quedar a más tardar el día miércoles para que tu envío salga en la misma semana.\n\nPago:\nDomingo sale lunes\nLunes sale martes\nMartes sale miércoles\nMiércoles sale jueves\n\n' +
+    'Tu cotización ya incluye la boleta mínima de aduana para que tu caja pueda salir a destino. Sin embargo, todos los envíos terrestres son susceptibles de ser revisados en la aduana y que el agente aduanal determine pagos de impuestos adicionales; estos corren totalmente por tu cuenta y se deben pagar de manera inmediata para que tu caja siga su curso.\n\nAdjunto la imagen de la cuenta y política de envío.';
+
+  return {
+    cajas: detalle.map((d) => ({ caja: d.indice + 1, peso_real_kg: d.real, peso_volumetrico_kg: Math.round(d.vol * 10) / 10, peso_mayor_kg: Math.round(d.facturable * 10) / 10, escalon_kg: d.tier?.kg ?? null, aereo: d.tier?.aereo ?? null, terrestre: d.tier?.terrestre ?? null, baja_pack: d.tier?.bajapack ?? null, ...(d.tier ? {} : { nota: 'Supera 60 kg: cotización especial a mano.' }) })),
+    totales: { aereo: totales.aereo, terrestre: totales.terrestre, ...(incluir_bajapack ? { baja_pack: totales.bajapack } : {}) },
+    zona_extendida: Boolean(zona_extendida), incluye_baja_pack: Boolean(incluir_bajapack),
+    ...(detalle.some((d) => !d.tier) ? { aviso: 'Alguna caja supera 60 kg: el total no la incluye y debe cotizarla ella a mano.' } : {}),
+    mensaje: t,
+    instruccion: 'Entrega el campo "mensaje" tal cual en un bloque para copiar. Recuérdale adjuntar ella misma la imagen de datos de pago y la de políticas de almacenaje.',
   };
 }
 
@@ -80,6 +154,8 @@ function limpiarFolio(x) {
   else if (diasEntre(hoyISO(), fecha) > 0) e.push('la fecha de recepción es futura');
   const precio = x?.precio === null || x?.precio === undefined || x?.precio === '' ? null : Number(x.precio);
   if (precio !== null && !(precio >= 0 && precio < 100000)) e.push('precio raro');
+  const rec = x?.recolector_numero === null || x?.recolector_numero === undefined || x?.recolector_numero === '' ? null : Number(x.recolector_numero);
+  if (rec !== null && !(Number.isInteger(rec) && rec >= 1 && rec <= 99)) e.push('número de recolector inválido');
   const reg = {
     folio, clave, fecha_recepcion: fecha,
     sucursal_origen: t(x?.sucursal_origen), sucursal_destino: t(x?.sucursal_destino),
@@ -87,7 +163,19 @@ function limpiarFolio(x) {
     precio: precio !== null && Number.isFinite(precio) ? precio : null, notas: t(x?.notas, 300),
   };
   Object.assign(reg, clasificar(reg.remitente, reg.destinatario, reg.notas));
+  if (rec !== null && Number.isInteger(rec) && reg.clasificacion !== 'foraneo') { reg.recolector_numero = rec; reg.clasificacion = 'foraneo'; }
   return { reg, errores: e };
+}
+
+const plano = (t) => String(t ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+// Si la etiqueta no vino, busca el nombre de un recolector en remitente/destinatario/notas. Solo SUGIERE.
+export function sugerirRecolectores(reg, recolectores) {
+  if (reg.recolector_numero) return [];
+  const t = ` ${plano([reg.remitente, reg.destinatario, reg.notas].filter(Boolean).join(' | ')).replace(/[^a-z0-9]+/g, ' ')} `;
+  return recolectores
+    .filter((r) => r.tipo === 'foraneo' && r.numero)
+    .filter((r) => plano(r.nombre).split(/\s+/).filter((w) => w.length >= 4).some((w) => t.includes(` ${w} `)))
+    .map((r) => ({ numero: r.numero, nombre: r.nombre, ciudad: r.ciudad }));
 }
 
 export async function proponerFolios({ turno, folios }) {
@@ -97,6 +185,7 @@ export async function proponerFolios({ turno, folios }) {
   return conBasePg(async (c) => {
     const hoy = hoyISO();
     const vistos = new Map();
+    const recs = (await c.query(`SELECT numero, nombre, ciudad, tipo FROM recolectores WHERE activo`)).rows;
     const nuevos = [], repetidos = [], invalidos = [];
     for (const x of lista) {
       const { reg, errores } = limpiarFolio(x);
@@ -111,7 +200,8 @@ export async function proponerFolios({ turno, folios }) {
         repetidos.push({ folio: reg.folio, motivo: 'ya estaba registrado', estado: f.estado, fecha_recepcion: f.fecha_recepcion, fecha_recogido: f.fecha_recogido, veces_enviado_antes: f.veces_enviado, clave: reg.clave });
         continue;
       }
-      nuevos.push({ ...reg, ...situacion(reg.fecha_recepcion, hoy) });
+      const posibles = sugerirRecolectores(reg, recs);
+      nuevos.push({ ...reg, ...situacion(reg.fecha_recepcion, hoy), ...(posibles.length ? { posible_recolector: posibles, aviso_recolector: 'Sugerencia por nombre, NO confirmada: pregúntale a la dueña antes de asignarlo.' } : {}) });
     }
     await c.query('DELETE FROM propuestas_folios');
     if (nuevos.length || repetidos.some((r) => r.clave)) {
@@ -120,7 +210,7 @@ export async function proponerFolios({ turno, folios }) {
     return {
       pendiente_de_confirmacion: true,
       nuevos, repetidos, invalidos,
-      instruccion: 'NO se ha guardado nada todavía. Muéstrale a la dueña la lista (folio, fecha de recepción, días, último día sin multa, recolector si lo hay), marca los dudosos y los repetidos, y pídele que confirme. Solo si responde que sí en su SIGUIENTE mensaje, llama a confirmar_folios.',
+      instruccion: 'NO se ha guardado nada todavía. Si algún folio trae posible_recolector, es solo una sugerencia: pregúntale si es ese; si lo confirma, vuelve a proponer con recolector_numero. Muéstrale a la dueña la lista (folio, fecha de recepción, días, último día sin multa, recolector si lo hay), marca los dudosos y los repetidos, y pídele que confirme. Solo si responde que sí en su SIGUIENTE mensaje, llama a confirmar_folios.',
     };
   });
 }
@@ -251,6 +341,15 @@ export async function resumenFolios() {
       (grupos[s.nivel] ||= []).push({ id: f.id, folio: f.folio, fecha_recepcion: f.fecha_recepcion, dias: s.dias_transcurridos, ultimo_dia_sin_multa: s.ultimo_dia_seguro, recolector: f.recolector_numero, destinatario: f.destinatario, veces_enviado: f.veces_enviado });
     }
     const rec = await c.query(`SELECT count(*)::int AS n FROM folios WHERE estado = 'recogido'`);
+    const nombres = new Map((await c.query('SELECT numero, nombre, ciudad FROM recolectores WHERE numero IS NOT NULL')).rows.map((x) => [x.numero, x]));
+    const porRec = new Map();
+    for (const f of r.rows) {
+      const s2 = situacion(f.fecha_recepcion, hoy);
+      if (s2.dias_transcurridos < 10) continue;
+      const k = f.recolector_numero ?? 0;
+      if (!porRec.has(k)) porRec.set(k, { numero: k || null, recolector: k ? `${nombres.get(k)?.nombre ?? '?'} (${nombres.get(k)?.ciudad ?? ''})` : 'Sin recolector asignado / cliente directo', folios: [] });
+      porRec.get(k).folios.push({ folio: f.folio, dias: s2.dias_transcurridos, nivel: s2.nivel, ultimo_dia_sin_multa: s2.ultimo_dia_seguro });
+    }
     return {
       hoy, pendientes: r.rowCount, recogidos: rec.rows[0].n,
       conteo: Object.fromEntries(Object.entries(grupos).map(([k, a]) => [k, a.length])),
@@ -258,6 +357,7 @@ export async function resumenFolios() {
       hoy_es_su_ultimo_dia: grupos.hoy_ultimo_dia, manana_es_su_ultimo_dia: grupos.manana_ultimo_dia,
       dias_10_a_11: grupos.atencion, fecha_futura: grupos.fecha_futura,
       con_tiempo: grupos.ok.length,
+      por_recolector_con_10_dias_o_mas: [...porRec.values()],
     };
   });
 }
