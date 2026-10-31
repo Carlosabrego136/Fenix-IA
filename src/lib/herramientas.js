@@ -263,7 +263,7 @@ export const HERRAMIENTAS = [
           type: 'array',
           items: { type: 'object', properties: { peso_real_kg: { type: 'number' }, largo_cm: { type: 'number' }, ancho_cm: { type: 'number' }, alto_cm: { type: 'number' } } },
         },
-        zona_extendida: { type: 'boolean', description: 'true si el destino es zona extendida (+$280 una sola vez). Pregúntaselo si no sabes.' },
+        zona_extendida: { type: 'boolean', description: 'true si el destino es zona extendida (+$280 una sola vez). Si no lo sabes, usa false y avísale al final.' },
         incluir_bajapack: { type: 'boolean', description: 'true solo si el cliente es de zona fronteriza (agrega la opción Baja Pack Express).' },
       },
       required: ['cajas'],

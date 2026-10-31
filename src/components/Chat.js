@@ -62,6 +62,8 @@ export default function Chat() {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
   const [menu, setMenu] = useState(false);
+  const [navOculta, setNavOculta] = useState(false);
+  useEffect(() => { try { setNavOculta(localStorage.getItem('fenix_nav_oculta') === '1'); } catch {} }, []);
   const [confirmar, setConfirmar] = useState(null);
   const [info, setInfo] = useState(null);
   const [toast, setToast] = useState('');
@@ -269,7 +271,14 @@ export default function Chat() {
           ))}
         </div>
         <div className="lateral__pie">
-          <div className="menu-nav">
+          <button
+            className="nav-toggle"
+            aria-expanded={!navOculta}
+            onClick={() => { const v = !navOculta; setNavOculta(v); try { localStorage.setItem('fenix_nav_oculta', v ? '1' : '0'); } catch {} }}
+          >
+            <span>Menú</span><span aria-hidden="true">{navOculta ? '▸ Mostrar' : '▾ Ocultar'}</span>
+          </button>
+          <div className={`menu-nav ${navOculta ? 'oculta' : ''}`}>
             <Link href="/folios">📦 Folios</Link>
             <Link href="/pagos">💵 Pagos</Link>
             <Link href="/plantillas">📝 Plantillas</Link>

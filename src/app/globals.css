@@ -321,6 +321,10 @@ a { color: var(--acento); }
 .fila-botones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .menu-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 4px; }
 .menu-nav a { display: flex; align-items: center; justify-content: center; min-height: 42px; border: 1px solid var(--linea); background: var(--panel2); color: var(--texto); border-radius: 12px; font-size: .92rem; font-weight: 600; text-decoration: none; text-align: center; padding: 4px 8px; }
+.nav-toggle { display: flex; justify-content: space-between; align-items: center; width: 100%; background: none; border: 0; color: var(--apagado); font-size: .78rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 4px; cursor: pointer; }
+.nav-toggle:hover { color: var(--acento); }
+@media (min-width: 900px) { .menu-nav.oculta { display: none; } }
+@media (max-width: 899px) { .nav-toggle { display: none; } }
 .menu-nav a:hover { border-color: var(--acento); color: var(--acento); }
 .panel-tarjeta { display: block; max-width: 820px; margin: 0 auto 12px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--linea); background: var(--panel); color: var(--texto); text-decoration: none; }
 .panel-tarjeta.rojo { background: var(--error-bg); border-color: var(--error-borde); }
