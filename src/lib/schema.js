@@ -94,4 +94,9 @@ CREATE TABLE IF NOT EXISTS pagos (
   actualizado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS pagos_estado_idx ON pagos (estado, semana_de);
+CREATE TABLE IF NOT EXISTS login_intentos (
+  ip TEXT PRIMARY KEY,
+  n INT NOT NULL DEFAULT 0,
+  ultimo TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 `;
